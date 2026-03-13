@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockVision - 주식 대시보드</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <!-- 헤더 -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon">📈</span>
+        <span class="logo-text">StockVision</span>
+      </div>
+      <nav class="nav">
+        <a href="#" class="nav-link active">홈</a>
+        <a href="#" class="nav-link">시장</a>
+        <a href="#" class="nav-link">포트폴리오</a>
+        <a href="#" class="nav-link">뉴스</a>
+      </nav>
+    </div>
+    <div class="header-right">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="종목 검색 (예: 삼성전자)" />
+        <button class="search-btn" onclick="searchStock()">🔍</button>
+      </div>
+      <button class="icon-btn" onclick="openModal('alertModal')" title="가격 알림">🔔</button>
+      <button class="icon-btn" onclick="openModal('portfolioModal')" title="포트폴리오">💼</button>
+      <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="테마 전환">🌙</button>
+      <div class="clock" id="clock"></div>
+    </div>
+  </header>
+
+  <!-- 마켓 티커 -->
+  <div class="ticker-bar">
+    <div class="ticker-track" id="tickerTrack"></div>
+  </div>
+
+  <!-- 장 상태 배너 -->
+  <div class="market-status-bar" id="marketStatusBar"></div>
+
+  <main class="main">
+    <!-- 정보 위젯 행 (환율 + 공포/탐욕) -->
+    <div class="info-widgets">
+      <div class="widget-row" id="forexWidgets"></div>
+      <div class="fear-greed-widget" id="fearGreedWidget"></div>
+    </div>
+
+    <!-- 지수 카드 -->
+    <section class="indices-section">
+      <h2 class="section-title">주요 지수</h2>
+      <div class="indices-grid" id="indicesGrid"></div>
+    </section>
+
+    <!-- 차트 + 사이드바 -->
+    <div class="dashboard-layout">
+      <div class="chart-panel">
+        <div class="panel-header">
+          <h2 class="panel-title" id="chartTitle">KOSPI 종합지수</h2>
+          <div class="chart-controls">
+            <button class="ctrl-btn active" onclick="setRange('1D', this)">1일</button>
+            <button class="ctrl-btn" onclick="setRange('1W', this)">1주</button>
+            <button class="ctrl-btn" onclick="setRange('1M', this)">1개월</button>
+            <button class="ctrl-btn" onclick="setRange('3M', this)">3개월</button>
+            <button class="ctrl-btn" onclick="setRange('1Y', this)">1년</button>
+          </div>
+        </div>
+        <div class="chart-info" id="chartInfo"></div>
+        <div class="chart-wrapper">
+          <canvas id="stockChart"></canvas>
+        </div>
+      </div>
+
+      <aside class="sidebar">
+        <!-- 관심종목 -->
+        <div class="widget">
+          <div class="widget-header">
+            <h3 class="widget-title">⭐ 관심종목</h3>
+            <button class="small-btn" onclick="openAddWatchlistModal()">+ 추가</button>
+          </div>
+          <div id="watchlist"></div>
+        </div>
+
+        <!-- 상승/하락 TOP -->
+        <div class="widget">
+          <h3 class="widget-title">🔥 상승 TOP 5</h3>
+          <div id="gainers"></div>
+        </div>
+        <div class="widget">
+          <h3 class="widget-title">📉 하락 TOP 5</h3>
+          <div id="losers"></div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- 종목 테이블 -->
+    <section class="table-section">
+      <div class="panel-header">
+        <h2 class="section-title">시가총액 상위 종목</h2>
+        <div class="tab-group">
+          <button class="tab-btn active" onclick="filterTable('all', this)">전체</button>
+          <button class="tab-btn" onclick="filterTable('up', this)">상승</button>
+          <button class="tab-btn" onclick="filterTable('down', this)">하락</button>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>종목명</th>
+              <th>현재가</th>
+              <th>전일대비</th>
+              <th>등락률</th>
+              <th>거래량</th>
+              <th>시가총액</th>
+              <th>알림</th>
+              <th>차트</th>
+            </tr>
+          </thead>
+          <tbody id="stockTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 경제 캘린더 -->
+    <section class="calendar-section">
+      <h2 class="section-title">📅 경제 캘린더</h2>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </section>
+
+    <!-- 뉴스 -->
+    <section class="news-section">
+      <h2 class="section-title">📰 시장 뉴스</h2>
+      <div class="news-grid" id="newsGrid"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>© 2026 StockVision · 주가 데이터: Yahoo Finance · 본 사이트는 정보 제공 목적이며 투자 권유가 아닙니다.</p>
+  </footer>
+
+  <!-- ===== 모달: 가격 알림 ===== -->
+  <div class="modal-overlay" id="alertModal" onclick="closeModalOutside(event, 'alertModal')">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>🔔 가격 알림 설정</h3>
+        <button class="modal-close" onclick="closeModal('alertModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>종목</label>
+          <select id="alertSymbol">
+            <option value="">선택하세요</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>조건</label>
+          <select id="alertCondition">
+            <option value="above">이상 (≥)</option>
+            <option value="below">이하 (≤)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>목표가 (원)</label>
+          <input type="number" id="alertPrice" placeholder="예: 200000" />
+        </div>
+        <button class="btn-primary" onclick="addAlert()">알림 추가</button>
+        <div class="alert-list" id="alertList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 모달: 포트폴리오 ===== -->
+  <div class="modal-overlay" id="portfolioModal" onclick="closeModalOutside(event, 'portfolioModal')">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h3>💼 포트폴리오 계산기</h3>
+        <button class="modal-close" onclick="closeModal('portfolioModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="portfolio-add-row">
+          <select id="portfolioSymbol">
+            <option value="">종목 선택</option>
+          </select>
+          <input type="number" id="portfolioQty" placeholder="보유 수량" min="1" />
+          <input type="number" id="portfolioAvg" placeholder="평균 매입가" min="1" />
+          <button class="btn-primary" onclick="addPortfolioItem()">추가</button>
+        </div>
+        <div class="portfolio-table-wrap">
+          <table class="portfolio-table">
+            <thead>
+              <tr><th>종목</th><th>수량</th><th>평균매입가</th><th>현재가</th><th>평가금액</th><th>손익</th><th>수익률</th><th></th></tr>
+            </thead>
+            <tbody id="portfolioBody"></tbody>
+          </table>
+        </div>
+        <div class="portfolio-summary" id="portfolioSummary"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 모달: 관심종목 추가 ===== -->
+  <div class="modal-overlay" id="addWatchlistModal" onclick="closeModalOutside(event, 'addWatchlistModal')">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>⭐ 관심종목 추가</h3>
+        <button class="modal-close" onclick="closeModal('addWatchlistModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>종목 선택</label>
+          <select id="watchlistAddSymbol">
+            <option value="">선택하세요</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="addToWatchlist()">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
