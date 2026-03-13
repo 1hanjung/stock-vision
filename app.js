@@ -378,6 +378,13 @@ async function fetchForex() {
   } catch (e) { return []; }
 }
 
+async function fetchFearGreed() {
+  try {
+    const res  = await fetch('https://api.alternative.me/fng/?limit=1');
+    const json = await res.json();
+    return json?.data?.[0] || null;
+  } catch (e) { return null; }
+}
 
 /* ===================== 데이터 변환 ===================== */
 function parseQuotes(quotes) {
@@ -442,6 +449,22 @@ async function buildForex() {
   `).join('');
 }
 
+/* ===================== 공포/탐욕 지수 ===================== */
+async function buildFearGreed() {
+  const data = await fetchFearGreed();
+  if (!data) return;
+  const val = parseInt(data.value);
+  const cls = val >= 75 ? '#3fb950' : val >= 55 ? '#58a6ff' : val >= 45 ? '#e3b341' : val >= 25 ? '#f0883e' : '#f85149';
+  const emoji = val >= 75 ? '😄' : val >= 55 ? '🙂' : val >= 45 ? '😐' : val >= 25 ? '😟' : '😱';
+  document.getElementById('fearGreedWidget').innerHTML = `
+    <div class="fg-gauge" style="background:${cls}22;color:${cls}">${emoji}<br><span style="font-size:14px">${val}</span></div>
+    <div class="fg-info">
+      <div class="fg-label">공포·탐욕 지수 (암호화폐)</div>
+      <div class="fg-value" style="color:${cls}">${data.value_classification}</div>
+      <div class="fg-classification">업데이트: ${data.timestamp ? new Date(data.timestamp*1000).toLocaleDateString('ko-KR') : '-'}</div>
+    </div>
+  `;
+}
 
 /* ===================== 차트 ===================== */
 let chartInstance = null;
@@ -696,6 +719,7 @@ async function init() {
   buildTicker(); buildIndices(); buildWatchlist(); buildRanking(); buildTable(STOCKS);
   await renderChart('1D');
   buildForex();
+  buildFearGreed();
   updateMarketStatus();
 
   setInterval(refreshData, 30000);
